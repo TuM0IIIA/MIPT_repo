@@ -1,5 +1,5 @@
 
-# SmartBot - Phase 1 Setup Guide
+# Phase 1 Setup Guide
 
 ## What This Does
 Captures frames from your webcam, runs YOLOv8 object detection,
