@@ -1,3 +1,4 @@
+
 # SmartBot - Phase 1 Setup Guide
 
 ## What This Does
@@ -104,5 +105,3 @@ Detects objects but no report prints
 3. Change capture_interval_seconds to 10 (Pi Zero is slower)
 4. For Pi Camera Module: swap cv2.VideoCapture for picamera2
    (instructions are in comments inside camera_service.py)
-
-Everything else is identical.
