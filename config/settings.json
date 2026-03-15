@@ -1,0 +1,23 @@
+{
+  "device": {
+    "device_id": "dev_laptop_001",
+    "device_name": "Laptop Camera (Dev Mode)"
+  },
+  "camera": {
+    "source": 0,
+    "capture_interval_seconds": 2,
+    "resolution_width": 640,
+    "resolution_height": 480
+  },
+  "detection": {
+    "model_path": "yolov8n.pt",
+    "confidence_threshold": 0.60,
+    "target_labels": ["cat", "dog", "person", "bird"],
+    "cooldown_seconds": 300
+  },
+  "preview": {
+    "enabled": true,
+    "window_title": "SmartBot — Debug Preview"
+  },
+  "environment": "development"
+}
