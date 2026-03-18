@@ -1,16 +1,16 @@
 {
   "device": {
-    "device_id": "dev_laptop_001",
-    "device_name": "Laptop Camera (Dev Mode)"
+    "device_id": "dev_pi_001",
+    "device_name": "Pi Zero 2w"
   },
   "camera": {
     "source": 0,
-    "capture_interval_seconds": 2,
+    "capture_interval_seconds": 3,
     "resolution_width": 640,
     "resolution_height": 480
   },
   "detection": {
-    "model_path": "yolov8n.pt",
+    "model_path": "yolov8n.onnx",
     "confidence_threshold": 0.6,
     "target_labels": [
       "cat",
@@ -21,11 +21,12 @@
     "cooldown_seconds": 300
   },
   "telegram": {
-    "bot_token": "8480875100:AAH4qqwxbrdfiQ9DWChfPmnyFdl9HYuPi3A",
-    "chat_id": "815323851"
+
+    "bot_token": "[bot token]",
+    "chat_id": "[chat_id]"
   },
   "preview": {
-    "enabled": true,
+    "enabled": false,
     "window_title": "SmartBot \u2014 Debug Preview"
   },
   "environment": "development"
