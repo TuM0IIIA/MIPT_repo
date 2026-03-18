@@ -1,17 +1,7 @@
 """
-main.py — SmartBot Phase 1
-
-Starts three background services:
-  CameraService     — captures frames
-  DetectionService  — runs YOLOv8 inference
-  ConsoleReporter   — prints results + saves images
-
-If preview.enabled = true in settings.json, also opens a live
-cv2 window showing every frame with bounding boxes drawn.
-The preview window runs on the MAIN THREAD (OpenCV requirement).
-
-Controls:
-  Q  or  ESC  — quit
+main.py - SmartBot Phase 2
+Sends detection reports to Telegram.
+Controls: Q or ESC to quit the preview window.
 """
 
 import queue
@@ -21,35 +11,52 @@ import time
 
 import cv2
 
-from services.camera_service    import CameraService
+from services.camera_service import CameraService
 from services.detection_service import DetectionService
-from services.console_reporter  import ConsoleReporter
-from utils.config_loader        import load_config
-from utils.logger               import get_logger
+from services.report_sender import ReportSender
+from utils.config_loader import load_config
+from utils.logger import get_logger
 
 logger = get_logger("main")
 
 
+def _validate_telegram_config(cfg):
+    tg = cfg.get("telegram", {})
+    token = tg.get("bot_token", "")
+    chat_id = tg.get("chat_id", "")
+    if not token or token == "YOUR_BOT_TOKEN_HERE":
+        raise ValueError(
+            "Telegram bot_token is not set! "
+            "Open config/settings.json and replace YOUR_BOT_TOKEN_HERE "
+            "with the token from @BotFather."
+        )
+    if not chat_id or chat_id == "YOUR_CHAT_ID_HERE":
+        raise ValueError(
+            "Telegram chat_id is not set! "
+            "Open config/settings.json and replace YOUR_CHAT_ID_HERE "
+            "with your chat ID."
+        )
+
+
 def main():
     logger.info("=" * 52)
-    logger.info("  SmartBot Phase 1 — Starting")
+    logger.info("  SmartBot Phase 2 - Starting")
     logger.info("=" * 52)
 
     config = load_config("config/settings.json")
-    preview_enabled = config.get("preview", {}).get("enabled", False)
-    window_title    = config.get("preview", {}).get("window_title", "SmartBot Preview")
+    _validate_telegram_config(config)
 
-    # ── Queues ──────────────────────────────────────────────────
-    frame_queue   = queue.Queue(maxsize=2)
-    result_queue  = queue.Queue(maxsize=10)
+    preview_enabled = config.get("preview", {}).get("enabled", False)
+    window_title = config.get("preview", {}).get("window_title", "SmartBot Preview")
+
+    frame_queue = queue.Queue(maxsize=2)
+    result_queue = queue.Queue(maxsize=10)
     preview_queue = queue.Queue(maxsize=2) if preview_enabled else None
 
-    # ── Services ────────────────────────────────────────────────
-    camera   = CameraService(config["camera"], frame_queue)
+    camera = CameraService(config["camera"], frame_queue)
     detector = DetectionService(config["detection"], frame_queue, result_queue, preview_queue)
-    reporter = ConsoleReporter(result_queue)
+    reporter = ReportSender(config, result_queue)
 
-    # ── Graceful shutdown ────────────────────────────────────────
     def shutdown(sig=None, frame=None):
         print("")
         logger.info("Shutting down...")
@@ -58,44 +65,35 @@ def main():
         camera.stop()
         if preview_enabled:
             cv2.destroyAllWindows()
-        logger.info("All services stopped. Goodbye.")
+        logger.info("Stopped. Goodbye.")
         sys.exit(0)
 
-    signal.signal(signal.SIGINT,  shutdown)
+    signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 
-    # ── Start background services ────────────────────────────────
     try:
-        logger.info("Starting reporter...")
+        logger.info("Starting Telegram report sender...")
         reporter.start()
 
-        logger.info("Loading AI model (first run downloads ~6MB)...")
+        logger.info("Loading AI model...")
         detector.start()
 
         logger.info("Starting camera...")
         camera.start()
 
-    except RuntimeError as e:
-        logger.error(f"Startup failed: {e}")
+    except (RuntimeError, ValueError) as e:
+        logger.error(str(e))
         sys.exit(1)
 
-    # ── Print startup summary ────────────────────────────────────
     logger.info("")
     logger.info("All systems running!")
-    logger.info(f"  Capture interval : {config['camera']['capture_interval_seconds']}s")
-    logger.info(f"  Watching for     : {config['detection']['target_labels']}")
-    logger.info(f"  Confidence min   : {config['detection']['confidence_threshold']:.0%}")
-    logger.info(f"  Cooldown         : {config['detection']['cooldown_seconds']}s")
+    logger.info("  Device       : %s", config["device"]["device_name"])
+    logger.info("  Watching for : %s", config["detection"]["target_labels"])
+    logger.info("  Cooldown     : %ss", config["detection"]["cooldown_seconds"])
+    logger.info("  Reports to   : Telegram chat %s", config["telegram"]["chat_id"])
     if preview_enabled:
-        logger.info(f"  Preview window   : ENABLED  (press Q or ESC to quit)")
-    else:
-        logger.info(f"  Preview window   : off  (set preview.enabled=true to enable)")
-    logger.info(f"  Saved images     : logs/reports/")
+        logger.info("  Preview      : OPEN  (press Q or ESC to quit)")
     logger.info("")
-
-    # ── Main loop ────────────────────────────────────────────────
-    # OpenCV imshow MUST be called from the main thread.
-    # We block here, polling the preview_queue and refreshing the window.
 
     if preview_enabled:
         cv2.namedWindow(window_title, cv2.WINDOW_NORMAL)
@@ -103,25 +101,17 @@ def main():
 
     while True:
         if preview_enabled:
-            # Try to get the latest annotated frame
-            frame_to_show = None
             try:
-                frame_to_show = preview_queue.get_nowait()
+                frame = preview_queue.get_nowait()
+                cv2.imshow(window_title, frame)
             except queue.Empty:
                 pass
-
-            if frame_to_show is not None:
-                cv2.imshow(window_title, frame_to_show)
-
-            # waitKey keeps the window alive; also checks for Q / ESC
-            key = cv2.waitKey(30) & 0xFF   # 30ms = ~33fps refresh
-            if key in (ord('q'), ord('Q'), 27):   # 27 = ESC
-                logger.info("Preview window closed by user.")
+            key = cv2.waitKey(30) & 0xFF
+            if key in (ord("q"), ord("Q"), 27):
                 shutdown()
         else:
             time.sleep(5)
 
-        # Health check
         if not camera.is_running():
             logger.error("Camera service crashed!")
         if not detector.is_running():
