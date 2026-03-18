@@ -1,6 +1,7 @@
 import logging
 import os
 
+
 def get_logger(name: str) -> logging.Logger:
     os.makedirs("logs", exist_ok=True)
     logger = logging.getLogger(name)

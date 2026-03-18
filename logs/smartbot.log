@@ -15006,3 +15006,258 @@
 [15:15:42] [INFO    ] [services.detection_service] Detection loop ended.
 [15:15:42] [INFO    ] [services.camera_service] Camera loop ended.
 [15:15:42] [INFO    ] [main] All services stopped. Goodbye.
+[17:12:34] [INFO    ] [main] ====================================================
+[17:12:34] [INFO    ] [main]   SmartBot Phase 2 - Starting
+[17:12:34] [INFO    ] [main] ====================================================
+[17:12:34] [DEBUG   ] [utils.config_loader] Config loaded from config/settings.json
+[17:12:34] [INFO    ] [main] Starting Telegram report sender...
+[17:12:34] [INFO    ] [services.report_sender] Report sender started. Waiting for detection events...
+[17:12:34] [INFO    ] [services.report_sender] Report sender thread started.
+[17:12:34] [INFO    ] [main] Loading AI model...
+[17:12:34] [INFO    ] [services.detection_service] Loading YOLO model: yolov8n.pt
+[17:12:34] [INFO    ] [services.detection_service] First run downloads ~6MB — please wait...
+[17:12:40] [INFO    ] [services.detection_service] Model loaded.
+[17:12:40] [INFO    ] [services.detection_service] Detection service started.
+[17:12:40] [INFO    ] [main] Starting camera...
+[17:12:40] [INFO    ] [services.camera_service] Opening camera (source=0)...
+[17:12:40] [INFO    ] [services.camera_service] Camera opened at 640x480
+[17:12:40] [INFO    ] [services.camera_service] Camera capturing every 2s.
+[17:12:40] [INFO    ] [main] 
+[17:12:40] [INFO    ] [main] All systems running!
+[17:12:40] [INFO    ] [main]   Device       : Laptop Camera (Dev Mode)
+[17:12:40] [INFO    ] [main]   Watching for : ['cat', 'dog', 'person', 'bird']
+[17:12:40] [INFO    ] [main]   Cooldown     : 300s
+[17:12:40] [INFO    ] [main]   Reports to   : Telegram chat 8480875100
+[17:12:40] [INFO    ] [main]   Preview      : OPEN  (press Q or ESC to quit)
+[17:12:40] [INFO    ] [main] 
+[17:12:42] [DEBUG   ] [services.detection_service] Inference 1.26s — 1 object(s)
+[17:12:42] [INFO    ] [services.detection_service] In frame: person (88%)
+[17:12:42] [INFO    ] [services.detection_service] EVENT: [PERSON] 88%
+[17:12:42] [INFO    ] [services.report_sender] Sending report #1: [PERSON] 88%
+[17:12:42] [DEBUG   ] [services.report_sender] Local copy saved: logs/reports/report_0001_person_2026-03-15T17-12-42-615657.jpg
+[17:12:42] [DEBUG   ] [services.detection_service] Inference 0.03s — 1 object(s)
+[17:12:42] [INFO    ] [services.detection_service] In frame: person (92%)
+[17:12:42] [INFO    ] [services.detection_service] 'person' in cooldown (300s left)
+[17:12:44] [DEBUG   ] [services.detection_service] Inference 0.01s — 1 object(s)
+[17:12:44] [INFO    ] [services.detection_service] In frame: person (92%)
+[17:12:44] [INFO    ] [services.detection_service] 'person' in cooldown (298s left)
+[17:12:45] [WARNING ] [services.report_sender] Telegram returned 401: {"ok":false,"error_code":401,"description":"Unauthorized"} (attempt 1/3)
+[17:12:45] [INFO    ] [services.report_sender] Retrying in 2s...
+[17:12:46] [DEBUG   ] [services.detection_service] Inference 0.01s — 1 object(s)
+[17:12:46] [INFO    ] [services.detection_service] In frame: person (92%)
+[17:12:46] [INFO    ] [services.detection_service] 'person' in cooldown (296s left)
+[17:12:48] [DEBUG   ] [services.detection_service] Inference 0.02s — 1 object(s)
+[17:12:48] [INFO    ] [services.detection_service] In frame: person (91%)
+[17:12:48] [INFO    ] [services.detection_service] 'person' in cooldown (294s left)
+[17:12:49] [WARNING ] [services.report_sender] Telegram returned 401: {"ok":false,"error_code":401,"description":"Unauthorized"} (attempt 2/3)
+[17:12:49] [INFO    ] [services.report_sender] Retrying in 4s...
+[17:12:50] [DEBUG   ] [services.detection_service] Inference 0.04s — 1 object(s)
+[17:12:50] [INFO    ] [services.detection_service] In frame: person (92%)
+[17:12:50] [INFO    ] [services.detection_service] 'person' in cooldown (292s left)
+[17:12:52] [DEBUG   ] [services.detection_service] Inference 0.06s — 1 object(s)
+[17:12:52] [INFO    ] [services.detection_service] In frame: person (92%)
+[17:12:52] [INFO    ] [services.detection_service] 'person' in cooldown (290s left)
+[17:12:54] [WARNING ] [services.report_sender] Telegram returned 401: {"ok":false,"error_code":401,"description":"Unauthorized"} (attempt 3/3)
+[17:12:54] [ERROR   ] [services.report_sender] Failed to send report #1 after 3 attempts.
+[17:12:54] [DEBUG   ] [services.detection_service] Inference 0.09s — 1 object(s)
+[17:12:54] [INFO    ] [services.detection_service] In frame: person (92%)
+[17:12:54] [INFO    ] [services.detection_service] 'person' in cooldown (288s left)
+[17:12:56] [DEBUG   ] [services.detection_service] Inference 0.01s — 1 object(s)
+[17:12:56] [INFO    ] [services.detection_service] In frame: person (89%)
+[17:12:56] [INFO    ] [services.detection_service] 'person' in cooldown (286s left)
+[17:12:58] [DEBUG   ] [services.detection_service] Inference 0.03s — 1 object(s)
+[17:12:58] [INFO    ] [services.detection_service] In frame: person (91%)
+[17:12:58] [INFO    ] [services.detection_service] 'person' in cooldown (284s left)
+[17:13:01] [DEBUG   ] [services.detection_service] Inference 0.11s — 1 object(s)
+[17:13:01] [INFO    ] [services.detection_service] In frame: person (92%)
+[17:13:01] [INFO    ] [services.detection_service] 'person' in cooldown (282s left)
+[17:13:02] [DEBUG   ] [services.detection_service] Inference 0.04s — 1 object(s)
+[17:13:02] [INFO    ] [services.detection_service] In frame: person (91%)
+[17:13:02] [INFO    ] [services.detection_service] 'person' in cooldown (280s left)
+[17:13:05] [DEBUG   ] [services.detection_service] Inference 0.13s — 1 object(s)
+[17:13:05] [INFO    ] [services.detection_service] In frame: person (91%)
+[17:13:05] [INFO    ] [services.detection_service] 'person' in cooldown (278s left)
+[17:13:06] [DEBUG   ] [services.detection_service] Inference 0.06s — 1 object(s)
+[17:13:06] [INFO    ] [services.detection_service] In frame: person (91%)
+[17:13:06] [INFO    ] [services.detection_service] 'person' in cooldown (276s left)
+[17:13:09] [DEBUG   ] [services.detection_service] Inference 0.10s — 1 object(s)
+[17:13:09] [INFO    ] [services.detection_service] In frame: person (91%)
+[17:13:09] [INFO    ] [services.detection_service] 'person' in cooldown (274s left)
+[17:13:10] [DEBUG   ] [services.detection_service] Inference 0.03s — 1 object(s)
+[17:13:10] [INFO    ] [services.detection_service] In frame: person (87%)
+[17:13:10] [INFO    ] [services.detection_service] 'person' in cooldown (272s left)
+[17:13:13] [DEBUG   ] [services.detection_service] Inference 0.09s — 1 object(s)
+[17:13:13] [INFO    ] [services.detection_service] In frame: person (94%)
+[17:13:13] [INFO    ] [services.detection_service] 'person' in cooldown (270s left)
+[17:13:15] [DEBUG   ] [services.detection_service] Inference 0.08s — 1 object(s)
+[17:13:15] [INFO    ] [services.detection_service] In frame: person (93%)
+[17:13:15] [INFO    ] [services.detection_service] 'person' in cooldown (268s left)
+[17:13:16] [DEBUG   ] [services.detection_service] Inference 0.03s — 1 object(s)
+[17:13:16] [INFO    ] [services.detection_service] In frame: person (92%)
+[17:13:16] [INFO    ] [services.detection_service] 'person' in cooldown (266s left)
+[17:13:18] [DEBUG   ] [services.detection_service] Inference 0.03s — 1 object(s)
+[17:13:18] [INFO    ] [services.detection_service] In frame: person (94%)
+[17:13:18] [INFO    ] [services.detection_service] 'person' in cooldown (264s left)
+[17:13:20] [DEBUG   ] [services.detection_service] Inference 0.03s — 1 object(s)
+[17:13:20] [INFO    ] [services.detection_service] In frame: person (94%)
+[17:13:20] [INFO    ] [services.detection_service] 'person' in cooldown (262s left)
+[17:13:22] [DEBUG   ] [services.detection_service] Inference 0.02s — 1 object(s)
+[17:13:22] [INFO    ] [services.detection_service] In frame: person (94%)
+[17:13:22] [INFO    ] [services.detection_service] 'person' in cooldown (260s left)
+[17:13:24] [INFO    ] [main] Shutting down...
+[17:13:25] [INFO    ] [services.report_sender] Report sender stopped.
+[17:13:25] [DEBUG   ] [services.detection_service] Inference 0.04s — 1 object(s)
+[17:13:25] [INFO    ] [services.detection_service] In frame: person (92%)
+[17:13:25] [INFO    ] [services.detection_service] 'person' in cooldown (258s left)
+[17:13:25] [INFO    ] [services.detection_service] Detection loop ended.
+[17:13:25] [INFO    ] [services.camera_service] Camera loop ended.
+[17:13:25] [INFO    ] [main] Stopped. Goodbye.
+[17:37:34] [INFO    ] [main] ====================================================
+[17:37:34] [INFO    ] [main]   SmartBot Phase 2 - Starting
+[17:37:34] [INFO    ] [main] ====================================================
+[17:37:34] [DEBUG   ] [utils.config_loader] Config loaded from config/settings.json
+[17:37:34] [INFO    ] [main] Starting Telegram report sender...
+[17:37:34] [INFO    ] [services.report_sender] Report sender started. Waiting for detection events...
+[17:37:34] [INFO    ] [services.report_sender] Report sender thread started.
+[17:37:34] [INFO    ] [main] Loading AI model...
+[17:37:34] [INFO    ] [services.detection_service] Loading YOLO model: yolov8n.pt
+[17:37:34] [INFO    ] [services.detection_service] First run downloads ~6MB — please wait...
+[17:37:38] [INFO    ] [services.detection_service] Model loaded.
+[17:37:38] [INFO    ] [services.detection_service] Detection service started.
+[17:37:38] [INFO    ] [main] Starting camera...
+[17:37:38] [INFO    ] [services.camera_service] Opening camera (source=0)...
+[17:37:38] [INFO    ] [services.camera_service] Camera opened at 640x480
+[17:37:38] [INFO    ] [services.camera_service] Camera capturing every 2s.
+[17:37:38] [INFO    ] [main] 
+[17:37:38] [INFO    ] [main] All systems running!
+[17:37:38] [INFO    ] [main]   Device       : Laptop Camera (Dev Mode)
+[17:37:38] [INFO    ] [main]   Watching for : ['cat', 'dog', 'person', 'bird']
+[17:37:38] [INFO    ] [main]   Cooldown     : 300s
+[17:37:38] [INFO    ] [main]   Reports to   : Telegram chat 815323851
+[17:37:38] [INFO    ] [main]   Preview      : OPEN  (press Q or ESC to quit)
+[17:37:38] [INFO    ] [main] 
+[17:37:40] [DEBUG   ] [services.detection_service] Inference 1.01s — 1 object(s)
+[17:37:40] [INFO    ] [services.detection_service] In frame: person (83%)
+[17:37:40] [INFO    ] [services.detection_service] EVENT: [PERSON] 83%
+[17:37:40] [INFO    ] [services.report_sender] Sending report #1: [PERSON] 83%
+[17:37:40] [DEBUG   ] [services.report_sender] Local copy saved: logs/reports/report_0001_person_2026-03-15T17-37-40-466843.jpg
+[17:37:40] [DEBUG   ] [services.detection_service] Inference 0.01s — 1 object(s)
+[17:37:40] [INFO    ] [services.detection_service] In frame: person (84%)
+[17:37:40] [INFO    ] [services.detection_service] 'person' in cooldown (300s left)
+[17:37:42] [INFO    ] [services.report_sender] Telegram report #1 sent successfully.
+[17:37:42] [DEBUG   ] [services.detection_service] Inference 0.03s — 1 object(s)
+[17:37:42] [INFO    ] [services.detection_service] In frame: person (86%)
+[17:37:42] [INFO    ] [services.detection_service] 'person' in cooldown (298s left)
+[17:37:44] [DEBUG   ] [services.detection_service] Inference 0.02s — 1 object(s)
+[17:37:44] [INFO    ] [services.detection_service] In frame: person (85%)
+[17:37:44] [INFO    ] [services.detection_service] 'person' in cooldown (296s left)
+[17:37:46] [DEBUG   ] [services.detection_service] Inference 0.03s — 1 object(s)
+[17:37:46] [INFO    ] [services.detection_service] In frame: person (88%)
+[17:37:46] [INFO    ] [services.detection_service] 'person' in cooldown (294s left)
+[17:37:48] [DEBUG   ] [services.detection_service] Inference 0.09s — 1 object(s)
+[17:37:48] [INFO    ] [services.detection_service] In frame: person (86%)
+[17:37:48] [INFO    ] [services.detection_service] 'person' in cooldown (292s left)
+[17:37:50] [DEBUG   ] [services.detection_service] Inference 0.10s — 1 object(s)
+[17:37:50] [INFO    ] [services.detection_service] In frame: person (92%)
+[17:37:50] [INFO    ] [services.detection_service] 'person' in cooldown (290s left)
+[17:37:52] [DEBUG   ] [services.detection_service] Inference 0.08s — 1 object(s)
+[17:37:52] [INFO    ] [services.detection_service] In frame: person (93%)
+[17:37:52] [INFO    ] [services.detection_service] 'person' in cooldown (288s left)
+[17:37:54] [DEBUG   ] [services.detection_service] Inference 0.12s — 1 object(s)
+[17:37:54] [INFO    ] [services.detection_service] In frame: person (93%)
+[17:37:54] [INFO    ] [services.detection_service] 'person' in cooldown (286s left)
+[17:37:56] [DEBUG   ] [services.detection_service] Inference 0.11s — 0 object(s)
+[17:37:58] [DEBUG   ] [services.detection_service] Inference 0.13s — 0 object(s)
+[17:38:00] [DEBUG   ] [services.detection_service] Inference 0.07s — 0 object(s)
+[17:38:02] [DEBUG   ] [services.detection_service] Inference 0.10s — 0 object(s)
+[17:38:04] [DEBUG   ] [services.detection_service] Inference 0.11s — 0 object(s)
+[17:38:06] [DEBUG   ] [services.detection_service] Inference 0.11s — 0 object(s)
+[17:38:09] [DEBUG   ] [services.detection_service] Inference 0.13s — 1 object(s)
+[17:38:09] [INFO    ] [services.detection_service] In frame: cat (76%)
+[17:38:09] [INFO    ] [services.detection_service] EVENT: [CAT] 76%
+[17:38:09] [INFO    ] [services.report_sender] Sending report #2: [CAT] 76%
+[17:38:09] [DEBUG   ] [services.report_sender] Local copy saved: logs/reports/report_0002_cat_2026-03-15T17-38-09-005749.jpg
+[17:38:10] [INFO    ] [services.report_sender] Telegram report #2 sent successfully.
+[17:38:10] [DEBUG   ] [services.detection_service] Inference 0.01s — 1 object(s)
+[17:38:10] [INFO    ] [services.detection_service] In frame: cat (69%)
+[17:38:10] [INFO    ] [services.detection_service] 'cat' in cooldown (298s left)
+[17:38:12] [DEBUG   ] [services.detection_service] Inference 0.03s — 0 object(s)
+[17:38:15] [DEBUG   ] [services.detection_service] Inference 0.10s — 0 object(s)
+[17:38:17] [DEBUG   ] [services.detection_service] Inference 0.12s — 0 object(s)
+[17:38:19] [DEBUG   ] [services.detection_service] Inference 0.12s — 1 object(s)
+[17:38:19] [INFO    ] [services.detection_service] In frame: person (84%)
+[17:38:19] [INFO    ] [services.detection_service] 'person' in cooldown (261s left)
+[17:38:21] [DEBUG   ] [services.detection_service] Inference 0.10s — 0 object(s)
+[17:38:22] [DEBUG   ] [services.detection_service] Inference 0.09s — 1 object(s)
+[17:38:22] [INFO    ] [services.detection_service] In frame: person (79%)
+[17:38:22] [INFO    ] [services.detection_service] 'person' in cooldown (257s left)
+[17:38:25] [DEBUG   ] [services.detection_service] Inference 0.16s — 1 object(s)
+[17:38:25] [INFO    ] [services.detection_service] In frame: cat (77%)
+[17:38:25] [INFO    ] [services.detection_service] 'cat' in cooldown (284s left)
+[17:38:26] [DEBUG   ] [services.detection_service] Inference 0.04s — 0 object(s)
+[17:38:29] [DEBUG   ] [services.detection_service] Inference 0.10s — 0 object(s)
+[17:38:31] [DEBUG   ] [services.detection_service] Inference 0.12s — 2 object(s)
+[17:38:31] [INFO    ] [services.detection_service] In frame: teddy bear (68%), person (66%)
+[17:38:31] [INFO    ] [services.detection_service] 'person' in cooldown (249s left)
+[17:38:33] [DEBUG   ] [services.detection_service] Inference 0.09s — 1 object(s)
+[17:38:33] [INFO    ] [services.detection_service] In frame: person (74%)
+[17:38:33] [INFO    ] [services.detection_service] 'person' in cooldown (247s left)
+[17:38:35] [DEBUG   ] [services.detection_service] Inference 0.09s — 0 object(s)
+[17:38:37] [DEBUG   ] [services.detection_service] Inference 0.13s — 0 object(s)
+[17:38:39] [DEBUG   ] [services.detection_service] Inference 0.07s — 1 object(s)
+[17:38:39] [INFO    ] [services.detection_service] In frame: teddy bear (69%)
+[17:38:41] [DEBUG   ] [services.detection_service] Inference 0.10s — 1 object(s)
+[17:38:41] [INFO    ] [services.detection_service] In frame: cat (66%)
+[17:38:41] [INFO    ] [services.detection_service] 'cat' in cooldown (268s left)
+[17:38:43] [DEBUG   ] [services.detection_service] Inference 0.09s — 0 object(s)
+[17:38:45] [DEBUG   ] [services.detection_service] Inference 0.10s — 0 object(s)
+[17:38:47] [DEBUG   ] [services.detection_service] Inference 0.15s — 0 object(s)
+[17:38:49] [DEBUG   ] [services.detection_service] Inference 0.16s — 0 object(s)
+[17:38:51] [DEBUG   ] [services.detection_service] Inference 0.09s — 1 object(s)
+[17:38:51] [INFO    ] [services.detection_service] In frame: teddy bear (74%)
+[17:38:53] [DEBUG   ] [services.detection_service] Inference 0.03s — 1 object(s)
+[17:38:53] [INFO    ] [services.detection_service] In frame: person (87%)
+[17:38:53] [INFO    ] [services.detection_service] 'person' in cooldown (227s left)
+[17:38:55] [DEBUG   ] [services.detection_service] Inference 0.10s — 1 object(s)
+[17:38:55] [INFO    ] [services.detection_service] In frame: cat (68%)
+[17:38:55] [INFO    ] [services.detection_service] 'cat' in cooldown (254s left)
+[17:38:57] [DEBUG   ] [services.detection_service] Inference 0.04s — 1 object(s)
+[17:38:57] [INFO    ] [services.detection_service] In frame: person (77%)
+[17:38:57] [INFO    ] [services.detection_service] 'person' in cooldown (223s left)
+[17:38:59] [DEBUG   ] [services.detection_service] Inference 0.08s — 0 object(s)
+[17:39:01] [DEBUG   ] [services.detection_service] Inference 0.15s — 0 object(s)
+[17:39:03] [DEBUG   ] [services.detection_service] Inference 0.01s — 0 object(s)
+[17:39:05] [DEBUG   ] [services.detection_service] Inference 0.04s — 1 object(s)
+[17:39:05] [INFO    ] [services.detection_service] In frame: teddy bear (70%)
+[17:39:07] [DEBUG   ] [services.detection_service] Inference 0.04s — 1 object(s)
+[17:39:07] [INFO    ] [services.detection_service] In frame: teddy bear (61%)
+[17:39:09] [DEBUG   ] [services.detection_service] Inference 0.07s — 0 object(s)
+[17:39:11] [DEBUG   ] [services.detection_service] Inference 0.07s — 1 object(s)
+[17:39:11] [INFO    ] [services.detection_service] In frame: teddy bear (63%)
+[17:39:13] [DEBUG   ] [services.detection_service] Inference 0.07s — 1 object(s)
+[17:39:13] [INFO    ] [services.detection_service] In frame: teddy bear (77%)
+[17:39:15] [DEBUG   ] [services.detection_service] Inference 0.06s — 0 object(s)
+[17:39:17] [DEBUG   ] [services.detection_service] Inference 0.10s — 2 object(s)
+[17:39:17] [INFO    ] [services.detection_service] In frame: person (75%), teddy bear (68%)
+[17:39:17] [INFO    ] [services.detection_service] 'person' in cooldown (203s left)
+[17:39:19] [DEBUG   ] [services.detection_service] Inference 0.03s — 1 object(s)
+[17:39:19] [INFO    ] [services.detection_service] In frame: teddy bear (85%)
+[17:39:21] [DEBUG   ] [services.detection_service] Inference 0.07s — 1 object(s)
+[17:39:21] [INFO    ] [services.detection_service] In frame: teddy bear (82%)
+[17:39:23] [DEBUG   ] [services.detection_service] Inference 0.06s — 1 object(s)
+[17:39:23] [INFO    ] [services.detection_service] In frame: teddy bear (86%)
+[17:39:25] [DEBUG   ] [services.detection_service] Inference 0.07s — 0 object(s)
+[17:39:27] [DEBUG   ] [services.detection_service] Inference 0.10s — 1 object(s)
+[17:39:27] [INFO    ] [services.detection_service] In frame: person (81%)
+[17:39:27] [INFO    ] [services.detection_service] 'person' in cooldown (193s left)
+[17:39:29] [DEBUG   ] [services.detection_service] Inference 0.03s — 1 object(s)
+[17:39:29] [INFO    ] [services.detection_service] In frame: person (87%)
+[17:39:29] [INFO    ] [services.detection_service] 'person' in cooldown (191s left)
+[17:39:30] [INFO    ] [main] Shutting down...
+[17:39:30] [INFO    ] [services.report_sender] Report sender stopped.
+[17:39:31] [DEBUG   ] [services.detection_service] Inference 0.04s — 1 object(s)
+[17:39:31] [INFO    ] [services.detection_service] In frame: cat (76%)
+[17:39:31] [INFO    ] [services.detection_service] 'cat' in cooldown (218s left)
+[17:39:31] [INFO    ] [services.detection_service] Detection loop ended.
+[17:39:31] [INFO    ] [services.camera_service] Camera loop ended.
+[17:39:31] [INFO    ] [main] Stopped. Goodbye.
