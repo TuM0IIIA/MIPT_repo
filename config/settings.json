@@ -11,13 +11,22 @@
   },
   "detection": {
     "model_path": "yolov8n.pt",
-    "confidence_threshold": 0.60,
-    "target_labels": ["cat", "dog", "person", "bird"],
+    "confidence_threshold": 0.6,
+    "target_labels": [
+      "cat",
+      "dog",
+      "person",
+      "bird"
+    ],
     "cooldown_seconds": 300
+  },
+  "telegram": {
+    "bot_token": "8480875100:AAH4qqwxbrdfiQ9DWChfPmnyFdl9HYuPi3A",
+    "chat_id": "815323851"
   },
   "preview": {
     "enabled": true,
-    "window_title": "SmartBot — Debug Preview"
+    "window_title": "SmartBot \u2014 Debug Preview"
   },
   "environment": "development"
 }
