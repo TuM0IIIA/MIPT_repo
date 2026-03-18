@@ -1,107 +1,212 @@
+# SmartBot 🤖
 
-# SmartBot - Phase 1 Setup Guide
-
-## What This Does
-Captures frames from your webcam, runs YOLOv8 object detection,
-and prints a report whenever it detects a cat, dog, or person.
-Saves annotated images to logs/reports/.
+An AI-powered home monitoring system that runs on a Raspberry Pi mounted to a
+vacuum robot. Detects pets, people, and unusual objects using YOLOv8 and sends
+photo reports directly to Telegram.
 
 ---
 
-## Prerequisites
-- Python 3.9 or higher
-- A working webcam
-- Internet connection for first run (downloads YOLOv8 model, about 6MB)
+## How it works
+
+The camera captures a frame every N seconds. Each frame is run through a
+YOLOv8 ONNX model. If a target object (cat, dog, person, bird) is detected
+above the confidence threshold and is not in cooldown, an annotated photo
+and text report are sent to a Telegram chat.
+
+```
+Camera → YOLOv8 (ONNX) → Cooldown check → Telegram report
+```
 
 ---
 
-## Setup (Do This Once)
+## Project structure
 
-### 1. Create a virtual environment
-From the smartbot/ folder:
-    python3 -m venv venv
-
-### 2. Activate it
-Mac/Linux:   source venv/bin/activate
-Windows:     venv\Scripts\activate
-
-You will see (venv) in your terminal prompt when it is active.
-
-### 3. Install dependencies
-    pip install -r requirements.txt
-
-Takes 2-5 minutes. Installs OpenCV and YOLOv8.
-
----
-
-## Run the System
-
-    python main.py
-
-First run will download the YOLOv8n model (~6MB). This happens once.
-Stop with Ctrl+C.
+```
+smartbot/
+  main.py                        Entry point. Starts all services.
+  requirements.txt               Python dependencies.
+  config/
+    settings.json                All configuration (camera, detection, telegram).
+  services/
+    camera_service.py            Captures frames. Uses cv2 on laptop, picamera2 on Pi.
+    detection_service.py         Runs YOLOv8 ONNX inference via cv2.dnn.
+    console_reporter.py          Phase 1 only. Prints detections to terminal.
+    report_sender.py             Phase 2+. Sends photo + text to Telegram.
+  utils/
+    logger.py                    Shared logger (console + file).
+    config_loader.py             Loads settings.json.
+  logs/
+    smartbot.log                 Full application logs.
+    reports/                     Saved annotated images.
+```
 
 ---
 
-## Configuration: config/settings.json
+## Setup — Laptop (development)
 
-camera.source                  0 means default webcam. Try 1 or 2 if wrong camera opens.
-camera.capture_interval_seconds  How often to capture a frame. 3 = every 3 seconds.
-detection.confidence_threshold   0.60 = 60% confidence required. Lower = more detections.
-detection.target_labels          List of objects to watch for and alert on.
-detection.cooldown_seconds       300 = wait 5 min before alerting same object again.
+**Requirements:** Python 3.9+, working webcam.
 
-TIP: Set cooldown_seconds to 10 for quick testing, 300 for real use.
+```bash
+python3 -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
 
----
+**Run:**
+```bash
+python main.py
+```
 
-## Output
-Annotated images saved to: logs/reports/
-Full logs saved to:         logs/smartbot.log
-
----
-
-## Troubleshooting
-
-ERROR: Could not open camera
-  - Another app is using your webcam (Zoom, Teams, browser). Close it first.
-  - Try changing camera.source to 1 in settings.json
-
-Nothing is being detected
-  - Lower confidence_threshold to 0.40 in settings.json
-  - Make sure the object is well lit and clearly in frame
-  - Check logs/reports/ to see what images look like
-
-Detects objects but no report prints
-  - Check target_labels - is your object in the list?
-  - Check cooldown_seconds - maybe same object detected recently. Set to 10 to test.
+A live preview window opens showing annotated frames in real time.
+Press Q or ESC to quit.
 
 ---
 
-## Project Structure
+## Setup — Raspberry Pi Zero 2W (production)
 
-  smartbot/
-    main.py                    <- Run this
-    requirements.txt           <- Install this
-    config/
-      settings.json            <- All configuration
-    services/
-      camera_service.py        <- Captures frames from camera
-      detection_service.py     <- Runs YOLOv8, applies cooldown
-      console_reporter.py      <- Prints reports and saves images (Phase 1)
-    utils/
-      logger.py
-      config_loader.py
-    logs/
-      smartbot.log             <- Full logs
-      reports/                 <- Saved annotated images
+**Requirements:** Raspberry Pi OS, Pi Camera Module, Python 3.9+.
+
+### 1. Export the ONNX model (run once on your laptop)
+
+```bash
+python -c "from ultralytics import YOLO; YOLO('yolov8n.pt').export(format='onnx', imgsz=640)"
+```
+
+This creates `yolov8n.onnx`. Copy it to the Pi along with the project:
+
+```bash
+scp -r smartbot/ pi@YOUR_PI_IP:/home/pi/smartbot
+scp yolov8n.onnx pi@YOUR_PI_IP:/home/pi/smartbot/
+```
+
+### 2. Install system dependencies on the Pi
+
+```bash
+sudo apt update
+sudo apt install -y python3-picamera2
+```
+
+### 3. Create venv with system site packages
+
+The `--system-site-packages` flag is required so the venv can access
+`picamera2` and `libcamera`, which are system-level Pi libraries that
+cannot be installed via pip.
+
+```bash
+cd /home/pi/smartbot
+python3 -m venv venv --system-site-packages
+source venv/bin/activate
+pip install opencv-python-headless requests
+```
+
+### 4. Configure for Pi
+
+Edit `config/settings.json`:
+
+```json
+"camera": {
+  "capture_interval_seconds": 10
+},
+"detection": {
+  "model_path": "yolov8n.onnx"
+},
+"preview": {
+  "enabled": false
+}
+```
+
+### 5. Run
+
+```bash
+source venv/bin/activate
+python main.py
+```
 
 ---
 
-## Moving to Raspberry Pi Zero 2W
+## Configuration reference
 
-1. Copy the entire smartbot/ folder to Pi via SCP or USB
-2. Run the same setup steps (python3 -m venv, pip install)
-3. Change capture_interval_seconds to 10 (Pi Zero is slower)
-4. For Pi Camera Module: swap cv2.VideoCapture for picamera2
-   (instructions are in comments inside camera_service.py)
+All settings live in `config/settings.json`. Never hardcode credentials.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `camera.source` | `0` | Camera index. 0 = default webcam. Ignored on Pi (uses picamera2). |
+| `camera.capture_interval_seconds` | `3` (laptop) / `10` (Pi) | Seconds between frame captures. |
+| `camera.resolution_width/height` | `480 x 360` | Capture resolution. Lower = faster inference on Pi. |
+| `detection.model_path` | `yolov8n.onnx` | Path to ONNX model file. |
+| `detection.confidence_threshold` | `0.60` | Minimum confidence to trigger a detection. |
+| `detection.target_labels` | `["cat","dog","person","bird"]` | Objects that trigger reports. |
+| `detection.cooldown_seconds` | `300` | Minimum seconds between reports of the same label. |
+| `telegram.bot_token` | — | Bot token from @BotFather. Keep secret, never commit. |
+| `telegram.chat_id` | — | Your personal Telegram chat ID. |
+| `preview.enabled` | `true` (laptop) / `false` (Pi) | Show live annotated video window. |
+
+**Tip:** Set `cooldown_seconds` to `10` while testing so reports fire quickly.
+
+---
+
+## Telegram bot setup
+
+1. Open Telegram and search for `@BotFather`
+2. Send `/newbot` and follow the prompts to get a bot token
+3. Start a conversation with your new bot (send it any message)
+4. Open `https://api.telegram.org/botYOUR_TOKEN/getUpdates` in a browser
+5. Find `"chat": {"id": 123456789}` in the response — that is your chat ID
+6. Add both values to `config/settings.json`
+
+---
+
+## Report decision logic
+
+A Telegram report is sent only when all three conditions pass:
+
+1. **Confidence ≥ threshold** — model must be confident enough (default 60%)
+2. **Label in target list** — detected object must be in `target_labels`
+3. **Not in cooldown** — same label not reported in the last `cooldown_seconds`
+
+If any condition fails the frame is skipped silently.
+
+---
+
+## AI model
+
+- **Model:** YOLOv8 nano (Ultralytics)
+- **Format:** ONNX — runs via `cv2.dnn`, no PyTorch needed on Pi
+- **Inference time:** ~200ms on laptop, ~5–10s on Pi Zero 2W
+- **Pre-trained on:** COCO dataset (80 classes including cat, dog, person, bird)
+
+To regenerate the ONNX file from the original PyTorch model:
+
+```bash
+python -c "from ultralytics import YOLO; YOLO('yolov8n.pt').export(format='onnx', imgsz=640)"
+```
+
+---
+
+## .gitignore
+
+```
+config/settings.json
+yolov8n.pt
+yolov8n.onnx
+venv/
+logs/
+__pycache__/
+*.pyc
+*.onnx
+*.pt
+```
+
+Keep `config/settings.json` out of git — it contains your Telegram credentials.
+Commit a `config/settings.example.json` with placeholder values instead.
+
+---
+
+## Roadmap
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1 | ✅ Done | Pi + camera + YOLOv8 detection |
+| Phase 2 | ✅ Done | Telegram bot reports |
+| Phase 3 | ⬜ Next | Cloud backend (Node.js, PostgreSQL, Redis) |
+| Phase 4 | ⬜ Later | Admin dashboard, beta launch |
