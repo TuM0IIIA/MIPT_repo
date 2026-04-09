@@ -27,22 +27,23 @@ class CameraService:
         self._thread: Optional[threading.Thread] = None
 
     def _init_camera(self) -> bool:
-        logger.info(f"Opening camera (source={self.source})...")
-        self.capture = cv2.VideoCapture(self.source)
-        if not self.capture.isOpened():
-            logger.error(f"Could not open camera source={self.source}. Is it used by another app?")
-            return False
-        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH,  self.width)
-        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
-        logger.info(f"Camera opened at {self.width}x{self.height}")
+        logger.info("Opening Pi Camera Module via picamera2...")
+        from picamera2 import Picamera2
+        self.picam = Picamera2()
+        self.picam.configure(self.picam.create_preview_configuration(
+            main={"size": (self.width, self.height), "format": "RGB888"}
+        ))
+        self.picam.start()
+        time.sleep(2)  # let camera warm up
+        logger.info(f"Pi Camera started at {self.width}x{self.height}")
         return True
 
     def _capture_loop(self):
         logger.info(f"Camera capturing every {self.interval}s.")
         while not self._stop_event.is_set():
             t0 = time.time()
-            ret, frame = self.capture.read()
-            if not ret or frame is None:
+            frame = self.picam.capture_array()
+            if frame is None:
                 logger.warning("Capture failed, retrying in 2s...")
                 time.sleep(2)
                 continue
@@ -54,7 +55,7 @@ class CameraService:
             self.frame_queue.put(frame)
             self._stop_event.wait(timeout=max(0, self.interval - (time.time() - t0)))
         logger.info("Camera loop ended.")
-
+    
     def start(self):
         if not self._init_camera():
             raise RuntimeError("Failed to open camera.")
@@ -65,8 +66,8 @@ class CameraService:
         self._stop_event.set()
         if self._thread:
             self._thread.join(timeout=5)
-        if self.capture:
-            self.capture.release()
+        if hasattr(self, 'picam'):
+            self.picam.stop()
 
     def is_running(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
