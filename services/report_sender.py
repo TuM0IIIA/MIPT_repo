@@ -98,7 +98,8 @@ class ReportSender:
 
     def _frame_to_jpeg_bytes(self, frame) -> bytes:
         """Convert OpenCV numpy frame to JPEG bytes for Telegram upload."""
-        success, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        small = cv2.resize(frame, (320,240))
+        success, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 40])
         if not success:
             raise RuntimeError("Failed to encode frame as JPEG")
         return BytesIO(buffer.tobytes())
@@ -122,7 +123,7 @@ class ReportSender:
                         "parse_mode": "HTML",
                     },
                     files={"photo": ("detection.jpg", jpeg_bytes, "image/jpeg")},
-                    timeout=15,
+                    timeout=30,
                 )
 
                 if response.status_code == 200:
