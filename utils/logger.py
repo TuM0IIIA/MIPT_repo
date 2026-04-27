@@ -3,6 +3,7 @@ import os
 
 
 def get_logger(name: str) -> logging.Logger:
+    """Return a named logger writing INFO to console and DEBUG to logs/smartbot.log."""
     os.makedirs("logs", exist_ok=True)
     logger = logging.getLogger(name)
     if logger.handlers:

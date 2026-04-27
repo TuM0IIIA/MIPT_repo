@@ -8,6 +8,7 @@ import queue
 import signal
 import sys
 import time
+from typing import Any
 
 import cv2
 
@@ -15,30 +16,32 @@ from services.camera_service import CameraService
 from services.detection_service import DetectionService
 from services.report_sender import ReportSender
 from utils.config_loader import load_config
+from utils.exceptions import ConfigError
 from utils.logger import get_logger
 
 logger = get_logger("main")
 
 
-def _validate_telegram_config(cfg):
+def _validate_telegram_config(cfg: dict[str, Any]) -> None:
+    """Raise ConfigError if Telegram credentials are missing or still set to placeholders."""
     tg = cfg.get("telegram", {})
     token = tg.get("bot_token", "")
     chat_id = tg.get("chat_id", "")
     if not token or token == "YOUR_BOT_TOKEN_HERE":
-        raise ValueError(
+        raise ConfigError(
             "Telegram bot_token is not set! "
             "Open config/settings.json and replace YOUR_BOT_TOKEN_HERE "
             "with the token from @BotFather."
         )
     if not chat_id or chat_id == "YOUR_CHAT_ID_HERE":
-        raise ValueError(
+        raise ConfigError(
             "Telegram chat_id is not set! "
             "Open config/settings.json and replace YOUR_CHAT_ID_HERE "
             "with your chat ID."
         )
 
 
-def main():
+def main() -> None:
     logger.info("=" * 52)
     logger.info("  SmartBot Phase 2 - Starting")
     logger.info("=" * 52)
@@ -49,15 +52,15 @@ def main():
     preview_enabled = config.get("preview", {}).get("enabled", False)
     window_title = config.get("preview", {}).get("window_title", "SmartBot Preview")
 
-    frame_queue = queue.Queue(maxsize=2)
-    result_queue = queue.Queue(maxsize=10)
-    preview_queue = queue.Queue(maxsize=2) if preview_enabled else None
+    frame_queue: queue.Queue = queue.Queue(maxsize=2)
+    result_queue: queue.Queue = queue.Queue(maxsize=10)
+    preview_queue: queue.Queue | None = queue.Queue(maxsize=2) if preview_enabled else None
 
     camera = CameraService(config["camera"], frame_queue)
     detector = DetectionService(config["detection"], frame_queue, result_queue, preview_queue)
     reporter = ReportSender(config, result_queue)
 
-    def shutdown(sig=None, frame=None):
+    def shutdown(sig: Any = None, frame: Any = None) -> None:
         print("")
         logger.info("Shutting down...")
         reporter.stop()
@@ -81,7 +84,7 @@ def main():
         logger.info("Starting camera...")
         camera.start()
 
-    except (RuntimeError, ValueError) as e:
+    except (RuntimeError, ConfigError) as e:
         logger.error(str(e))
         sys.exit(1)
 

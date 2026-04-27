@@ -14,11 +14,12 @@ import os
 import queue
 import threading
 import time
-from io import BytesIO
-from typing import Optional
 from datetime import datetime
+from io import BytesIO
+from typing import Any, Optional
 
 import cv2
+import numpy as np
 import requests
 
 from services.detection_service import DetectionEvent
@@ -27,7 +28,7 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 # Emoji per detected label — makes reports easier to read at a glance
-LABEL_EMOJI = {
+LABEL_EMOJI: dict[str, str] = {
     "cat":    "🐱",
     "dog":    "🐶",
     "person": "🧍",
@@ -37,14 +38,12 @@ DEFAULT_EMOJI = "📦"
 
 
 class ReportSender:
-    def __init__(self, config: dict, result_queue: queue.Queue):
-        """
-        config: the full config dict from settings.json
-        result_queue: we read DetectionEvents from here
-        """
+    """Sends annotated detection photos to a Telegram chat with HTML-formatted captions."""
+
+    def __init__(self, config: dict[str, Any], result_queue: queue.Queue) -> None:
         telegram_cfg = config["telegram"]
-        self.bot_token = telegram_cfg["bot_token"]
-        self.chat_id   = telegram_cfg["chat_id"]
+        self.bot_token   = telegram_cfg["bot_token"]
+        self.chat_id     = telegram_cfg["chat_id"]
         self.device_name = config["device"]["device_name"]
 
         self.result_queue = result_queue
@@ -52,37 +51,30 @@ class ReportSender:
         self._thread: Optional[threading.Thread] = None
         self._report_count = 0
 
-        # API endpoints
         self._send_photo_url = f"https://api.telegram.org/bot{self.bot_token}/sendPhoto"
         self._send_msg_url   = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
 
-        # Save images for local reference too (same as console_reporter did)
         os.makedirs("logs/reports", exist_ok=True)
 
     # ── Formatting ────────────────────────────────────────────────
 
     def _format_caption(self, event: DetectionEvent) -> str:
-        """
-        Builds the Telegram message caption.
-        Telegram supports basic HTML formatting.
-        """
+        """Build the Telegram message caption with HTML formatting."""
         emoji = LABEL_EMOJI.get(event.label, DEFAULT_EMOJI)
 
-        # Format timestamp nicely: 2024-01-15T14:32:07 → Today at 14:32
         try:
             dt = datetime.fromisoformat(event.timestamp)
             time_str = dt.strftime("Today at %H:%M")
-        except Exception:
+        except ValueError:
             time_str = event.timestamp
 
-        # Other objects found in the same frame
         others = [
             d["label"] for d in event.all_detections
             if d["label"] != event.label
         ]
         others_str = ", ".join(others) if others else "none"
 
-        caption = (
+        return (
             f"{emoji} <b>{event.label.capitalize()} detected</b>\n"
             f"━━━━━━━━━━━━━━━━\n"
             f"Confidence : {event.confidence:.0%}\n"
@@ -92,22 +84,20 @@ class ReportSender:
             f"━━━━━━━━━━━━━━━━\n"
             f"Report #{self._report_count}"
         )
-        return caption
 
     # ── Sending ───────────────────────────────────────────────────
 
-    def _frame_to_jpeg_bytes(self, frame) -> bytes:
-        """Convert OpenCV numpy frame to JPEG bytes for Telegram upload."""
+    def _frame_to_jpeg_bytes(self, frame: np.ndarray) -> BytesIO:
+        """Encode an OpenCV frame as a JPEG BytesIO buffer for Telegram upload."""
         success, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
         if not success:
             raise RuntimeError("Failed to encode frame as JPEG")
         return BytesIO(buffer.tobytes())
 
     def _send_photo(self, event: DetectionEvent) -> bool:
-        """
-        Sends the annotated photo + caption to Telegram.
-        Returns True on success, False on failure.
-        Retries up to 3 times with exponential backoff.
+        """Send the annotated photo and caption to Telegram, with up to 3 retries.
+
+        Returns True on success, False after all retries are exhausted.
         """
         caption = self._format_caption(event)
         jpeg_bytes = self._frame_to_jpeg_bytes(event.frame)
@@ -128,17 +118,17 @@ class ReportSender:
                 if response.status_code == 200:
                     logger.info(f"Telegram report #{self._report_count} sent successfully.")
                     return True
-                else:
-                    logger.warning(
-                        f"Telegram returned {response.status_code}: {response.text} "
-                        f"(attempt {attempt}/3)"
-                    )
+
+                logger.warning(
+                    f"Telegram returned {response.status_code}: {response.text} "
+                    f"(attempt {attempt}/3)"
+                )
 
             except requests.exceptions.ConnectionError:
                 logger.warning(f"No internet connection. Attempt {attempt}/3.")
             except requests.exceptions.Timeout:
                 logger.warning(f"Telegram request timed out. Attempt {attempt}/3.")
-            except Exception as e:
+            except requests.exceptions.RequestException as e:
                 logger.error(f"Unexpected error sending to Telegram: {e}")
                 return False
 
@@ -146,13 +136,13 @@ class ReportSender:
                 wait = 2 ** attempt   # 2s, 4s
                 logger.info(f"Retrying in {wait}s...")
                 time.sleep(wait)
-                jpeg_bytes.seek(0)    # reset buffer for retry
+                jpeg_bytes.seek(0)
 
         logger.error(f"Failed to send report #{self._report_count} after 3 attempts.")
         return False
 
-    def _save_local(self, event: DetectionEvent):
-        """Also save the image locally — useful for debugging."""
+    def _save_local(self, event: DetectionEvent) -> None:
+        """Save the annotated image locally for debugging."""
         safe_time = event.timestamp.replace(":", "-").replace(".", "-")
         path = f"logs/reports/report_{self._report_count:04d}_{event.label}_{safe_time}.jpg"
         cv2.imwrite(path, event.frame)
@@ -160,7 +150,7 @@ class ReportSender:
 
     # ── Main loop ─────────────────────────────────────────────────
 
-    def _send_loop(self):
+    def _send_loop(self) -> None:
         logger.info("Report sender started. Waiting for detection events...")
 
         while not self._stop_event.is_set():
@@ -182,19 +172,22 @@ class ReportSender:
 
     # ── Lifecycle ─────────────────────────────────────────────────
 
-    def start(self):
+    def start(self) -> None:
+        """Start the report sender thread."""
         self._thread = threading.Thread(
             target=self._send_loop, daemon=True, name="ReportSenderThread"
         )
         self._thread.start()
         logger.info("Report sender thread started.")
 
-    def stop(self):
+    def stop(self) -> None:
+        """Signal the sender thread to stop and wait for it to exit."""
         self._stop_event.set()
         if self._thread:
             self._thread.join(timeout=10)
 
     def is_running(self) -> bool:
+        """Return True if the sender thread is alive."""
         return self._thread is not None and self._thread.is_alive()
 
 

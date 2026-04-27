@@ -19,7 +19,9 @@ REPORTS_DIR = "logs/reports"
 
 
 class ConsoleReporter:
-    def __init__(self, result_queue: queue.Queue):
+    """Prints detection reports to the console and saves annotated images locally."""
+
+    def __init__(self, result_queue: queue.Queue) -> None:
         self.result_queue = result_queue
         self._stop_event  = threading.Event()
         self._thread: Optional[threading.Thread] = None
@@ -27,6 +29,7 @@ class ConsoleReporter:
         os.makedirs(REPORTS_DIR, exist_ok=True)
 
     def _format(self, e: DetectionEvent) -> str:
+        """Format a DetectionEvent as a human-readable console report."""
         others = [f"    - {d['label']} ({d['confidence']:.0%})"
                   for d in e.all_detections if d["label"] != e.label]
         return (
@@ -42,12 +45,13 @@ class ConsoleReporter:
         )
 
     def _save(self, e: DetectionEvent) -> str:
+        """Save the annotated frame to disk and return the file path."""
         safe = e.timestamp.replace(":", "-").replace(".", "-")
         path = f"{REPORTS_DIR}/report_{self._count:04d}_{e.label}_{safe}.jpg"
         cv2.imwrite(path, e.frame)
         return path
 
-    def _loop(self):
+    def _loop(self) -> None:
         logger.info("Console reporter ready.")
         while not self._stop_event.is_set():
             try:
@@ -59,14 +63,17 @@ class ConsoleReporter:
             path = self._save(event)
             logger.info(f"Image saved: {path}")
 
-    def start(self):
+    def start(self) -> None:
+        """Start the reporter thread."""
         self._thread = threading.Thread(target=self._loop, daemon=True, name="ReporterThread")
         self._thread.start()
 
-    def stop(self):
+    def stop(self) -> None:
+        """Signal the reporter thread to stop."""
         self._stop_event.set()
         if self._thread:
             self._thread.join(timeout=5)
 
     def is_running(self) -> bool:
+        """Return True if the reporter thread is alive."""
         return self._thread is not None and self._thread.is_alive()
