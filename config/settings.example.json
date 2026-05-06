@@ -1,7 +1,7 @@
 {
   "device": {
     "device_id": "dev_pi_001",
-    "device_name": "Pi Zero 2w"
+    "device_name": "My SmartBot Pi"
   },
   "camera": {
     "source": 0,
@@ -12,22 +12,16 @@
   "detection": {
     "model_path": "yolov8n.onnx",
     "confidence_threshold": 0.6,
-    "target_labels": [
-      "cat",
-      "dog",
-      "person",
-      "bird"
-    ],
+    "target_labels": ["cat", "dog", "person", "bird"],
     "cooldown_seconds": 300
   },
-  "telegram": {
-
-    "bot_token": "[bot token]",
-    "chat_id": "[chat_id]"
+  "api": {
+    "API_ENDPOINT": "https://your-app.up.railway.app/device/report",
+    "API_KEY": "your-api-key-here"
   },
   "preview": {
     "enabled": false,
-    "window_title": "SmartBot \u2014 Debug Preview"
+    "window_title": "SmartBot — Debug Preview"
   },
   "environment": "development"
 }

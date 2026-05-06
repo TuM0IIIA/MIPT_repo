@@ -1,10 +1,10 @@
 """
 report_sender.py
 ----------------
-Phase 2 — replaces console_reporter.py.
+Phase 3 — replaces direct Telegram delivery.
 
-Reads DetectionEvents from the result queue and sends them
-to a Telegram chat as a photo + formatted text message.
+Reads DetectionEvents from the result queue and POSTs JSON reports
+to the cloud API. The cloud handles Telegram notifications.
 
 Drop-in replacement: the interface is identical to ConsoleReporter.
 main.py only needs one line changed (see bottom of this file).
@@ -15,11 +15,9 @@ import queue
 import threading
 import time
 from datetime import datetime
-from io import BytesIO
 from typing import Any, Optional
 
 import cv2
-import numpy as np
 import requests
 
 from services.detection_service import DetectionEvent
@@ -38,12 +36,9 @@ DEFAULT_EMOJI = "📦"
 
 
 class ReportSender:
-    """Sends annotated detection photos to a Telegram chat with HTML-formatted captions."""
+    """POSTs JSON detection reports to the cloud API with retry logic."""
 
     def __init__(self, config: dict[str, Any], result_queue: queue.Queue) -> None:
-        telegram_cfg = config["telegram"]
-        self.bot_token   = telegram_cfg["bot_token"]
-        self.chat_id     = telegram_cfg["chat_id"]
         self.device_name = config["device"]["device_name"]
 
         self.result_queue = result_queue
@@ -51,15 +46,15 @@ class ReportSender:
         self._thread: Optional[threading.Thread] = None
         self._report_count = 0
 
-        self._send_photo_url = f"https://api.telegram.org/bot{self.bot_token}/sendPhoto"
-        self._send_msg_url   = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+        self._send_report_api_url = config["api"]["API_ENDPOINT"]
+        self._api_key = config["api"]["API_KEY"]
 
         os.makedirs("logs/reports", exist_ok=True)
 
     # ── Formatting ────────────────────────────────────────────────
 
     def _format_caption(self, event: DetectionEvent) -> str:
-        """Build the Telegram message caption with HTML formatting."""
+        """Build the detection report text sent as the status field."""
         emoji = LABEL_EMOJI.get(event.label, DEFAULT_EMOJI)
 
         try:
@@ -87,56 +82,46 @@ class ReportSender:
 
     # ── Sending ───────────────────────────────────────────────────
 
-    def _frame_to_jpeg_bytes(self, frame: np.ndarray) -> BytesIO:
-        """Encode an OpenCV frame as a JPEG BytesIO buffer for Telegram upload."""
-        success, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
-        if not success:
-            raise RuntimeError("Failed to encode frame as JPEG")
-        return BytesIO(buffer.tobytes())
-
-    def _send_photo(self, event: DetectionEvent) -> bool:
-        """Send the annotated photo and caption to Telegram, with up to 3 retries.
+    def _send_report(self, event: DetectionEvent) -> bool:
+        """POST a JSON detection report to the cloud API, with up to 3 retries.
 
         Returns True on success, False after all retries are exhausted.
         """
         caption = self._format_caption(event)
-        jpeg_bytes = self._frame_to_jpeg_bytes(event.frame)
 
         for attempt in range(1, 4):
             try:
                 response = requests.post(
-                    self._send_photo_url,
-                    data={
-                        "chat_id": self.chat_id,
-                        "caption": caption,
-                        "parse_mode": "HTML",
+                    self._send_report_api_url,
+                    json={
+                        "deviceId": self.device_name,
+                        "status": caption,
                     },
-                    files={"photo": ("detection.jpg", jpeg_bytes, "image/jpeg")},
+                    headers={"X-API-Key": self._api_key},
                     timeout=15,
                 )
 
                 if response.status_code == 200:
-                    logger.info(f"Telegram report #{self._report_count} sent successfully.")
+                    logger.info(f"Report to API #{self._report_count} sent successfully.")
                     return True
 
                 logger.warning(
-                    f"Telegram returned {response.status_code}: {response.text} "
+                    f"API returned {response.status_code}: {response.text} "
                     f"(attempt {attempt}/3)"
                 )
 
             except requests.exceptions.ConnectionError:
                 logger.warning(f"No internet connection. Attempt {attempt}/3.")
             except requests.exceptions.Timeout:
-                logger.warning(f"Telegram request timed out. Attempt {attempt}/3.")
+                logger.warning(f"API request timed out. Attempt {attempt}/3.")
             except requests.exceptions.RequestException as e:
-                logger.error(f"Unexpected error sending to Telegram: {e}")
+                logger.error(f"Unexpected error sending to API: {e}")
                 return False
 
             if attempt < 3:
                 wait = 2 ** attempt   # 2s, 4s
                 logger.info(f"Retrying in {wait}s...")
                 time.sleep(wait)
-                jpeg_bytes.seek(0)
 
         logger.error(f"Failed to send report #{self._report_count} after 3 attempts.")
         return False
@@ -166,7 +151,7 @@ class ReportSender:
             )
 
             self._save_local(event)
-            self._send_photo(event)
+            self._send_report(event)
 
         logger.info("Report sender stopped.")
 
@@ -189,19 +174,3 @@ class ReportSender:
     def is_running(self) -> bool:
         """Return True if the sender thread is alive."""
         return self._thread is not None and self._thread.is_alive()
-
-
-# ── HOW TO SWITCH FROM PHASE 1 TO PHASE 2 IN main.py ─────────────
-#
-# Change ONE import and ONE line in main.py:
-#
-# BEFORE (Phase 1):
-#   from services.console_reporter import ConsoleReporter
-#   reporter = ConsoleReporter(result_queue)
-#
-# AFTER (Phase 2):
-#   from services.report_sender import ReportSender
-#   reporter = ReportSender(config, result_queue)
-#
-# That's it. Everything else stays identical.
-# ─────────────────────────────────────────────────────────────────
