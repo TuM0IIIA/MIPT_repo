@@ -1,6 +1,6 @@
 """
-main.py - SmartBot Phase 2
-Sends detection reports to Telegram.
+main.py - SmartBot Phase 3
+POSTs detection reports to cloud API.
 Controls: Q or ESC to quit the preview window.
 """
 
@@ -22,32 +22,30 @@ from utils.logger import get_logger
 logger = get_logger("main")
 
 
-def _validate_telegram_config(cfg: dict[str, Any]) -> None:
-    """Raise ConfigError if Telegram credentials are missing or still set to placeholders."""
-    tg = cfg.get("telegram", {})
-    token = tg.get("bot_token", "")
-    chat_id = tg.get("chat_id", "")
-    if not token or token == "YOUR_BOT_TOKEN_HERE":
+def _validate_api_config(cfg: dict[str, Any]) -> None:
+    """Raise ConfigError if cloud API credentials are missing or still set to placeholders."""
+    api = cfg.get("api", {})
+    endpoint = api.get("API_ENDPOINT", "")
+    key = api.get("API_KEY", "")
+    if not endpoint or endpoint == "https://your-app.up.railway.app/device/report":
         raise ConfigError(
-            "Telegram bot_token is not set! "
-            "Open config/settings.json and replace YOUR_BOT_TOKEN_HERE "
-            "with the token from @BotFather."
+            "API_ENDPOINT is not set! "
+            "Open config/settings.json and set api.API_ENDPOINT to your Railway URL."
         )
-    if not chat_id or chat_id == "YOUR_CHAT_ID_HERE":
+    if not key or key == "your-api-key-here":
         raise ConfigError(
-            "Telegram chat_id is not set! "
-            "Open config/settings.json and replace YOUR_CHAT_ID_HERE "
-            "with your chat ID."
+            "API_KEY is not set! "
+            "Open config/settings.json and set api.API_KEY."
         )
 
 
 def main() -> None:
     logger.info("=" * 52)
-    logger.info("  SmartBot Phase 2 - Starting")
+    logger.info("  SmartBot Phase 3 - Starting")
     logger.info("=" * 52)
 
     config = load_config("config/settings.json")
-    _validate_telegram_config(config)
+    _validate_api_config(config)
 
     preview_enabled = config.get("preview", {}).get("enabled", False)
     window_title = config.get("preview", {}).get("window_title", "SmartBot Preview")
@@ -75,7 +73,7 @@ def main() -> None:
     signal.signal(signal.SIGTERM, shutdown)
 
     try:
-        logger.info("Starting Telegram report sender...")
+        logger.info("Starting cloud API reporter...")
         reporter.start()
 
         logger.info("Loading AI model...")
@@ -93,7 +91,7 @@ def main() -> None:
     logger.info("  Device       : %s", config["device"]["device_name"])
     logger.info("  Watching for : %s", config["detection"]["target_labels"])
     logger.info("  Cooldown     : %ss", config["detection"]["cooldown_seconds"])
-    logger.info("  Reports to   : Telegram chat %s", config["telegram"]["chat_id"])
+    logger.info("  Reports to   : %s", config["api"]["API_ENDPOINT"])
     if preview_enabled:
         logger.info("  Preview      : OPEN  (press Q or ESC to quit)")
     logger.info("")
