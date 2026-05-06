@@ -1,6 +1,6 @@
 """
-camera_service.py — captures frames from webcam into a queue.
-Swap cv2.VideoCapture for picamera2 when Pi Camera Module arrives (see note at bottom).
+camera_service.py — captures frames from camera into a queue.
+Uses picamera2 if available (Pi Camera Module), otherwise cv2.VideoCapture (USB webcam/laptop).
 """
 
 import queue
@@ -9,44 +9,71 @@ import time
 from typing import Any, Optional
 
 import cv2
+import numpy as np
 
 from utils.exceptions import CameraError
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+try:
+    from picamera2 import Picamera2
+    _PICAMERA2_AVAILABLE = True
+except ImportError:
+    _PICAMERA2_AVAILABLE = False
+
 
 class CameraService:
     """Captures frames from a camera on a fixed interval and pushes them onto a queue."""
 
     def __init__(self, config: dict[str, Any], frame_queue: queue.Queue) -> None:
-        self.source   = config["source"]
-        self.interval = config["capture_interval_seconds"]
-        self.width    = config["resolution_width"]
-        self.height   = config["resolution_height"]
+        self.source      = config["source"]
+        self.interval    = config["capture_interval_seconds"]
+        self.width       = config["resolution_width"]
+        self.height      = config["resolution_height"]
         self.frame_queue = frame_queue
-        self.capture: Optional[cv2.VideoCapture] = None
+        self._capture: Optional[cv2.VideoCapture] = None
+        self._picam      = None
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
 
     def _init_camera(self) -> bool:
-        """Open the camera device and configure resolution. Returns False if unavailable."""
+        if _PICAMERA2_AVAILABLE:
+            logger.info("picamera2 detected — using Pi Camera Module.")
+            self._picam = Picamera2()
+            cfg = self._picam.create_video_configuration(
+                main={"size": (self.width, self.height), "format": "RGB888"}
+            )
+            self._picam.configure(cfg)
+            self._picam.start()
+            time.sleep(0.5)   # allow sensor to warm up
+            logger.info(f"Pi camera started at {self.width}x{self.height}")
+            return True
+
         logger.info(f"Opening camera (source={self.source})...")
-        self.capture = cv2.VideoCapture(self.source)
-        if not self.capture.isOpened():
+        self._capture = cv2.VideoCapture(self.source)
+        if not self._capture.isOpened():
             logger.error(f"Could not open camera source={self.source}. Is it used by another app?")
             return False
-        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH,  self.width)
-        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
+        self._capture.set(cv2.CAP_PROP_FRAME_WIDTH,  self.width)
+        self._capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.height)
         logger.info(f"Camera opened at {self.width}x{self.height}")
         return True
+
+    def _read_frame(self) -> Optional[np.ndarray]:
+        """Return one BGR frame, or None on failure."""
+        if self._picam is not None:
+            frame = self._picam.capture_array()
+            return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        ret, frame = self._capture.read()
+        return frame if ret else None
 
     def _capture_loop(self) -> None:
         logger.info(f"Camera capturing every {self.interval}s.")
         while not self._stop_event.is_set():
             t0 = time.time()
-            ret, frame = self.capture.read()
-            if not ret or frame is None:
+            frame = self._read_frame()
+            if frame is None:
                 logger.warning("Capture failed, retrying in 2s...")
                 time.sleep(2)
                 continue
@@ -63,7 +90,9 @@ class CameraService:
         """Open the camera and start the capture thread. Raises CameraError on failure."""
         if not self._init_camera():
             raise CameraError("Failed to open camera.")
-        self._thread = threading.Thread(target=self._capture_loop, daemon=True, name="CameraThread")
+        self._thread = threading.Thread(
+            target=self._capture_loop, daemon=True, name="CameraThread"
+        )
         self._thread.start()
 
     def stop(self) -> None:
@@ -71,18 +100,11 @@ class CameraService:
         self._stop_event.set()
         if self._thread:
             self._thread.join(timeout=5)
-        if self.capture:
-            self.capture.release()
+        if self._picam is not None:
+            self._picam.stop()
+        if self._capture is not None:
+            self._capture.release()
 
     def is_running(self) -> bool:
         """Return True if the capture thread is alive."""
         return self._thread is not None and self._thread.is_alive()
-
-
-# ── Pi Camera Module swap ──────────────────────────────────────────
-# from picamera2 import Picamera2
-# self.picam = Picamera2()
-# self.picam.configure(self.picam.create_preview_configuration(main={"size": (640, 480)}))
-# self.picam.start()
-# frame = self.picam.capture_array()   # same numpy array, rest unchanged
-# ──────────────────────────────────────────────────────────────────
