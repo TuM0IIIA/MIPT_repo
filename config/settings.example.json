@@ -7,7 +7,8 @@
     "source": 0,
     "capture_interval_seconds": 3,
     "resolution_width": 640,
-    "resolution_height": 480
+    "resolution_height": 480,
+    "motion_threshold": 5.0
   },
   "detection": {
     "model_path": "yolov8n.onnx",

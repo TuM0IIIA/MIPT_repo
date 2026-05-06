@@ -36,6 +36,9 @@ class CameraService:
         self._picam      = None
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
+        self._prev_gray = None
+        self.motion_threshold = config.get("motion_threshold", 0.0)
+
 
     def _init_camera(self) -> bool:
         if _PICAMERA2_AVAILABLE:
@@ -82,6 +85,17 @@ class CameraService:
                     self.frame_queue.get_nowait()
                 except queue.Empty:
                     pass
+
+            grey = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            prev = self._prev_gray
+            self._prev_gray = grey
+            if self.motion_threshold > 0 and prev is not None:
+                diff = cv2.absdiff(prev, grey)
+                motion = np.mean(diff)
+                if motion < self.motion_threshold:
+                    logger.debug(f"Motion {motion:.2f} below threshold {self.motion_threshold}, skipping frame.")
+                    continue
+            
             self.frame_queue.put(frame)
             self._stop_event.wait(timeout=max(0, self.interval - (time.time() - t0)))
         logger.info("Camera loop ended.")
