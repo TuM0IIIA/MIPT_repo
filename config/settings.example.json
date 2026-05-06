@@ -20,6 +20,10 @@
     "API_ENDPOINT": "https://your-app.up.railway.app/device/report",
     "API_KEY": "your-api-key-here"
   },
+  "telegram": {
+    "bot_token": "your-bot-token-here",
+    "chat_id": "your-chat-id-here"
+  },
   "preview": {
     "enabled": false,
     "window_title": "SmartBot — Debug Preview"

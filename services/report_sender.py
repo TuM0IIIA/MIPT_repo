@@ -49,6 +49,10 @@ class ReportSender:
         self._send_report_api_url = config["api"]["API_ENDPOINT"]
         self._api_key = config["api"]["API_KEY"]
 
+        tg = config.get("telegram", {})
+        self._tg_token   = tg.get("bot_token")
+        self._tg_chat_id = tg.get("chat_id")
+
         os.makedirs("logs/reports", exist_ok=True)
 
     # ── Formatting ────────────────────────────────────────────────
@@ -133,6 +137,28 @@ class ReportSender:
         cv2.imwrite(path, event.frame)
         logger.debug(f"Local copy saved: {path}")
 
+    def _send_telegram_fallback(self, event: DetectionEvent) -> None:
+        """Send a plain-text Telegram message directly when the cloud API is unreachable."""
+        if not self._tg_token or not self._tg_chat_id:
+            logger.warning("Telegram fallback not configured — skipping.")
+            return
+        text = (
+            f"[FALLBACK] {event.label.upper()} detected "
+            f"({event.confidence:.0%}) on {self.device_name}"
+        )
+        try:
+            r = requests.post(
+                f"https://api.telegram.org/bot{self._tg_token}/sendMessage",
+                json={"chat_id": self._tg_chat_id, "text": text},
+                timeout=10,
+            )
+            if r.status_code == 200:
+                logger.info("Telegram fallback sent successfully.")
+            else:
+                logger.warning(f"Telegram fallback failed: {r.status_code} {r.text}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Telegram fallback error: {e}")
+
     # ── Main loop ─────────────────────────────────────────────────
 
     def _send_loop(self) -> None:
@@ -151,7 +177,8 @@ class ReportSender:
             )
 
             self._save_local(event)
-            self._send_report(event)
+            if not self._send_report(event):
+                self._send_telegram_fallback(event)
 
         logger.info("Report sender stopped.")
 
