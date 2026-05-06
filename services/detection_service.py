@@ -34,6 +34,22 @@ LABEL_COLORS: dict[str, tuple[int, int, int]] = {
 }
 DEFAULT_COLOR: tuple[int, int, int] = (160, 160, 160)
 
+# YOLOv8n ONNX was trained on COCO 80 classes
+_COCO_CLASSES: list[str] = [
+    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
+    "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
+    "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
+    "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
+    "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
+    "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
+    "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake",
+    "chair", "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop",
+    "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink",
+    "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier",
+    "toothbrush",
+]
+_INPUT_SIZE = 640   # YOLOv8n ONNX expects 640×640
+
 
 @dataclass
 class DetectionEvent:
@@ -72,12 +88,10 @@ class DetectionService:
     # ── model ─────────────────────────────────────────────────────
 
     def _load_model(self) -> None:
-        """Load the YOLO model from disk. Raises ModelError on failure."""
+        """Load the YOLO ONNX model via cv2.dnn. Raises ModelError on failure."""
         logger.info(f"Loading YOLO model: {self.model_path}")
-        logger.info("First run downloads ~6MB — please wait...")
         try:
-            from ultralytics import YOLO
-            self.model = YOLO(self.model_path)
+            self.model = cv2.dnn.readNetFromONNX(self.model_path)
             logger.info("Model loaded.")
         except Exception as e:
             raise ModelError(f"Failed to load YOLO model: {e}") from e
@@ -100,21 +114,46 @@ class DetectionService:
     # ── inference ─────────────────────────────────────────────────
 
     def _run_inference(self, frame: np.ndarray) -> list[dict[str, Any]]:
-        results = self.model(frame, verbose=False)
+        h, w = frame.shape[:2]
+        blob = cv2.dnn.blobFromImage(
+            frame, 1 / 255.0, (_INPUT_SIZE, _INPUT_SIZE), swapRB=True, crop=False
+        )
+        self.model.setInput(blob)
+        raw = self.model.forward()   # shape: (1, 84, 8400)
+
+        preds = raw[0].T             # (8400, 84): cx cy w h + 80 class scores
+        class_scores = preds[:, 4:]
+        class_ids = np.argmax(class_scores, axis=1)
+        confidences = class_scores[np.arange(len(class_scores)), class_ids]
+
+        mask = confidences >= self.confidence_threshold
+        preds = preds[mask]
+        confidences = confidences[mask]
+        class_ids = class_ids[mask]
+
+        if len(preds) == 0:
+            return []
+
+        scale_x, scale_y = w / _INPUT_SIZE, h / _INPUT_SIZE
+        boxes_xywh: list[list[int]] = []
+        for cx, cy, bw, bh, *_ in preds:
+            x1 = int((cx - bw / 2) * scale_x)
+            y1 = int((cy - bh / 2) * scale_y)
+            boxes_xywh.append([x1, y1, int(bw * scale_x), int(bh * scale_y)])
+
+        indices = cv2.dnn.NMSBoxes(boxes_xywh, confidences.tolist(), self.confidence_threshold, 0.45)
+        flat = indices.flatten() if len(indices) else []
+
         detections: list[dict[str, Any]] = []
-        for r in results:
-            for box in r.boxes:
-                conf = float(box.conf[0])
-                if conf < self.confidence_threshold:
-                    continue
-                label = r.names[int(box.cls[0])]
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                detections.append({
-                    "label": label,
-                    "confidence": round(conf, 3),
-                    "x": x1, "y": y1,
-                    "w": x2 - x1, "h": y2 - y1,
-                })
+        for i in flat:
+            x, y, bw, bh = boxes_xywh[i]
+            cls = int(class_ids[i])
+            label = _COCO_CLASSES[cls] if cls < len(_COCO_CLASSES) else str(cls)
+            detections.append({
+                "label": label,
+                "confidence": round(float(confidences[i]), 3),
+                "x": x, "y": y, "w": bw, "h": bh,
+            })
         return detections
 
     # ── annotation ────────────────────────────────────────────────
