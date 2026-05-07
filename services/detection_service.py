@@ -74,13 +74,14 @@ class DetectionService:
         self.model_path           = config["model_path"]
         self.confidence_threshold = config["confidence_threshold"]
         self.target_labels        = set(config["target_labels"])
-        self.cooldown_seconds     = config["cooldown_seconds"]
+        self._absence_threshold: int = config.get("absence_threshold_frames", 5)
 
         self.frame_queue   = frame_queue
         self.result_queue  = result_queue
         self.preview_queue = preview_queue
 
-        self._last_detected: dict[str, float] = {}
+        self._currently_present: set[str] = set()
+        self._frames_absent: dict[str, int] = {}
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self.model = None
@@ -96,20 +97,23 @@ class DetectionService:
         except Exception as e:
             raise ModelError(f"Failed to load YOLO model: {e}") from e
 
-    # ── cooldown ──────────────────────────────────────────────────
+    # ── presence tracking ─────────────────────────────────────────
 
-    def _in_cooldown(self, label: str) -> bool:
-        t = self._last_detected.get(label)
-        return t is not None and (time.time() - t) < self.cooldown_seconds
+    def _mark_present(self, label: str) -> None:
+        self._currently_present.add(label)
+        self._frames_absent[label] = 0
 
-    def _set_cooldown(self, label: str) -> None:
-        self._last_detected[label] = time.time()
-
-    def _cooldown_remaining(self, label: str) -> float:
-        t = self._last_detected.get(label)
-        if t is None:
-            return 0.0
-        return max(0.0, self.cooldown_seconds - (time.time() - t))
+    def _update_absence(self, detected_target_labels: set[str]) -> None:
+        """Increment absence counters for labels no longer in frame; evict when threshold reached."""
+        for label in list(self._currently_present):
+            if label not in detected_target_labels:
+                self._frames_absent[label] = self._frames_absent.get(label, 0) + 1
+                if self._frames_absent[label] >= self._absence_threshold:
+                    self._currently_present.discard(label)
+                    self._frames_absent.pop(label, None)
+                    logger.info(f"'{label}' left the scene")
+            else:
+                self._frames_absent[label] = 0
 
     # ── inference ─────────────────────────────────────────────────
 
@@ -199,9 +203,8 @@ class DetectionService:
                         (x + 5, pill_y2 - 5),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1, cv2.LINE_AA)
 
-            if label in self.target_labels and self._in_cooldown(label):
-                remaining = self._cooldown_remaining(label)
-                cv2.putText(out, f"cooldown {remaining:.0f}s",
+            if label in self.target_labels and label in self._currently_present:
+                cv2.putText(out, "present",
                             (x + 5, y + bh - 6),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.42, (80, 200, 255), 1, cv2.LINE_AA)
 
@@ -246,6 +249,11 @@ class DetectionService:
             annotated = self._annotate_frame(frame, detections, show_stats=True)
             self._push_preview(annotated)
 
+            detected_target_labels = {
+                d["label"] for d in detections if d["label"] in self.target_labels
+            }
+            self._update_absence(detected_target_labels)
+
             if not detections:
                 continue
 
@@ -256,11 +264,10 @@ class DetectionService:
                 label = det["label"]
                 if label not in self.target_labels:
                     continue
-                if self._in_cooldown(label):
-                    logger.info(f"'{label}' in cooldown ({self._cooldown_remaining(label):.0f}s left)")
-                    continue
+                if label in self._currently_present:
+                    continue  # already in scene, no new event
 
-                self._set_cooldown(label)
+                self._mark_present(label)
                 event = DetectionEvent(
                     timestamp=datetime.now().isoformat(),
                     label=label,
@@ -270,7 +277,7 @@ class DetectionService:
                     all_detections=detections,
                 )
                 self.result_queue.put(event)
-                logger.info(f"EVENT: [{label.upper()}] {det['confidence']:.0%}")
+                logger.info(f"EVENT: [{label.upper()}] {det['confidence']:.0%} — entered scene")
                 break   # one event per frame
 
         logger.info("Detection loop ended.")
