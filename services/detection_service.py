@@ -233,6 +233,8 @@ class DetectionService:
         while not self._stop_event.is_set():
             try:
                 frame = self.frame_queue.get(timeout=2)
+                while not self.frame_queue.empty():
+                    frame = self.frame_queue.get_nowait()
             except queue.Empty:
                 continue
 
