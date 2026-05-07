@@ -120,6 +120,32 @@ class DetectionService:
             else:
                 self._frames_absent[label] = 0
 
+    # ── NMS ───────────────────────────────────────────────────────
+
+    @staticmethod
+    def _nms(boxes_xywh: list[list[int]], scores: np.ndarray, iou_threshold: float = 0.45) -> list[int]:
+        """Pure numpy non-maximum suppression. Replaces cv2.dnn.NMSBoxes."""
+        if len(boxes_xywh) == 0:
+            return []
+        x1 = np.array([b[0] for b in boxes_xywh], dtype=np.float32)
+        y1 = np.array([b[1] for b in boxes_xywh], dtype=np.float32)
+        x2 = x1 + np.array([b[2] for b in boxes_xywh], dtype=np.float32)
+        y2 = y1 + np.array([b[3] for b in boxes_xywh], dtype=np.float32)
+        areas = (x2 - x1) * (y2 - y1)
+        order = np.argsort(scores)[::-1]
+        keep: list[int] = []
+        while len(order):
+            i = int(order[0])
+            keep.append(i)
+            xx1 = np.maximum(x1[i], x1[order[1:]])
+            yy1 = np.maximum(y1[i], y1[order[1:]])
+            xx2 = np.minimum(x2[i], x2[order[1:]])
+            yy2 = np.minimum(y2[i], y2[order[1:]])
+            inter = np.maximum(0.0, xx2 - xx1) * np.maximum(0.0, yy2 - yy1)
+            iou = inter / (areas[i] + areas[order[1:]] - inter + 1e-6)
+            order = order[1:][iou <= iou_threshold]
+        return keep
+
     # ── inference ─────────────────────────────────────────────────
 
     def _run_inference(self, frame: np.ndarray) -> list[dict[str, Any]]:
@@ -149,8 +175,7 @@ class DetectionService:
             y1 = int((cy - bh / 2) * scale_y)
             boxes_xywh.append([x1, y1, int(bw * scale_x), int(bh * scale_y)])
 
-        indices = cv2.dnn.NMSBoxes(boxes_xywh, confidences.tolist(), self.confidence_threshold, 0.45)
-        flat = indices.flatten() if len(indices) else []
+        flat = self._nms(boxes_xywh, confidences, iou_threshold=0.45)
 
         detections: list[dict[str, Any]] = []
         for i in flat:
