@@ -36,7 +36,7 @@ DEFAULT_EMOJI = "📦"
 
 
 class ReportSender:
-    """POSTs JSON detection reports to the cloud API with retry logic."""
+    """POSTs multipart detection reports (JPEG + metadata) to the cloud API with retry logic."""
 
     def __init__(self, config: dict[str, Any], result_queue: queue.Queue) -> None:
         self.device_name = config["device"]["device_name"]
@@ -87,22 +87,26 @@ class ReportSender:
     # ── Sending ───────────────────────────────────────────────────
 
     def _send_report(self, event: DetectionEvent) -> bool:
-        """POST a JSON detection report to the cloud API, with up to 3 retries.
+        """POST a multipart report (JPEG + metadata) to the cloud API, up to 3 retries.
 
         Returns True on success, False after all retries are exhausted.
         """
         caption = self._format_caption(event)
 
+        _, buf = cv2.imencode(".jpg", event.frame, [cv2.IMWRITE_JPEG_QUALITY, 40])
+        image_bytes = buf.tobytes()
+
         for attempt in range(1, 4):
             try:
                 response = requests.post(
                     self._send_report_api_url,
-                    json={
+                    data={
                         "deviceId": self.device_name,
                         "status": caption,
                     },
+                    files={"image": ("capture.jpg", image_bytes, "image/jpeg")},
                     headers={"X-API-Key": self._api_key},
-                    timeout=15,
+                    timeout=30,
                 )
 
                 if response.status_code == 200:
