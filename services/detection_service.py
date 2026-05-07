@@ -19,6 +19,7 @@ from typing import Any, Optional
 
 import cv2
 import numpy as np
+import onnxruntime as ort
 
 from utils.exceptions import ModelError
 from utils.logger import get_logger
@@ -89,10 +90,14 @@ class DetectionService:
     # ── model ─────────────────────────────────────────────────────
 
     def _load_model(self) -> None:
-        """Load the YOLO ONNX model via cv2.dnn. Raises ModelError on failure."""
+        """Load the YOLO ONNX model via onnxruntime. Raises ModelError on failure."""
         logger.info(f"Loading YOLO model: {self.model_path}")
         try:
-            self.model = cv2.dnn.readNetFromONNX(self.model_path)
+            self.model = ort.InferenceSession(
+                self.model_path,
+                providers=["CPUExecutionProvider"],
+            )
+            self._input_name = self.model.get_inputs()[0].name
             logger.info("Model loaded.")
         except Exception as e:
             raise ModelError(f"Failed to load YOLO model: {e}") from e
@@ -119,13 +124,12 @@ class DetectionService:
 
     def _run_inference(self, frame: np.ndarray) -> list[dict[str, Any]]:
         h, w = frame.shape[:2]
-        blob = cv2.dnn.blobFromImage(
-            frame, 1 / 255.0, (_INPUT_SIZE, _INPUT_SIZE), swapRB=True, crop=False
-        )
-        self.model.setInput(blob)
-        raw = self.model.forward()   # shape: (1, 84, 8400)
+        resized = cv2.resize(frame, (_INPUT_SIZE, _INPUT_SIZE))
+        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+        blob = (rgb.astype(np.float32) / 255.0).transpose(2, 0, 1)[np.newaxis]
+        raw = self.model.run(None, {self._input_name: blob})   # shape: (1, 84, 8400)
 
-        preds = raw[0].T             # (8400, 84): cx cy w h + 80 class scores
+        preds = raw[0][0].T          # (8400, 84): cx cy w h + 80 class scores
         class_scores = preds[:, 4:]
         class_ids = np.argmax(class_scores, axis=1)
         confidences = class_scores[np.arange(len(class_scores)), class_ids]
