@@ -19,6 +19,7 @@ from typing import Any, Optional
 
 import cv2
 import numpy as np
+import onnxruntime as ort
 
 from utils.exceptions import ModelError
 from utils.logger import get_logger
@@ -89,10 +90,14 @@ class DetectionService:
     # ── model ─────────────────────────────────────────────────────
 
     def _load_model(self) -> None:
-        """Load the YOLO ONNX model via cv2.dnn. Raises ModelError on failure."""
+        """Load the YOLO ONNX model via onnxruntime. Raises ModelError on failure."""
         logger.info(f"Loading YOLO model: {self.model_path}")
         try:
-            self.model = cv2.dnn.readNetFromONNX(self.model_path)
+            self.model = ort.InferenceSession(
+                self.model_path,
+                providers=["CPUExecutionProvider"],
+            )
+            self._input_name = self.model.get_inputs()[0].name
             logger.info("Model loaded.")
         except Exception as e:
             raise ModelError(f"Failed to load YOLO model: {e}") from e
@@ -115,17 +120,42 @@ class DetectionService:
             else:
                 self._frames_absent[label] = 0
 
+    # ── NMS ───────────────────────────────────────────────────────
+
+    @staticmethod
+    def _nms(boxes_xywh: list[list[int]], scores: np.ndarray, iou_threshold: float = 0.45) -> list[int]:
+        """Pure numpy non-maximum suppression. Replaces cv2.dnn.NMSBoxes."""
+        if len(boxes_xywh) == 0:
+            return []
+        x1 = np.array([b[0] for b in boxes_xywh], dtype=np.float32)
+        y1 = np.array([b[1] for b in boxes_xywh], dtype=np.float32)
+        x2 = x1 + np.array([b[2] for b in boxes_xywh], dtype=np.float32)
+        y2 = y1 + np.array([b[3] for b in boxes_xywh], dtype=np.float32)
+        areas = (x2 - x1) * (y2 - y1)
+        order = np.argsort(scores)[::-1]
+        keep: list[int] = []
+        while len(order):
+            i = int(order[0])
+            keep.append(i)
+            xx1 = np.maximum(x1[i], x1[order[1:]])
+            yy1 = np.maximum(y1[i], y1[order[1:]])
+            xx2 = np.minimum(x2[i], x2[order[1:]])
+            yy2 = np.minimum(y2[i], y2[order[1:]])
+            inter = np.maximum(0.0, xx2 - xx1) * np.maximum(0.0, yy2 - yy1)
+            iou = inter / (areas[i] + areas[order[1:]] - inter + 1e-6)
+            order = order[1:][iou <= iou_threshold]
+        return keep
+
     # ── inference ─────────────────────────────────────────────────
 
     def _run_inference(self, frame: np.ndarray) -> list[dict[str, Any]]:
         h, w = frame.shape[:2]
-        blob = cv2.dnn.blobFromImage(
-            frame, 1 / 255.0, (_INPUT_SIZE, _INPUT_SIZE), swapRB=True, crop=False
-        )
-        self.model.setInput(blob)
-        raw = self.model.forward()   # shape: (1, 84, 8400)
+        resized = cv2.resize(frame, (_INPUT_SIZE, _INPUT_SIZE))
+        rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+        blob = (rgb.astype(np.float32) / 255.0).transpose(2, 0, 1)[np.newaxis]
+        raw = self.model.run(None, {self._input_name: blob})   # shape: (1, 84, 8400)
 
-        preds = raw[0].T             # (8400, 84): cx cy w h + 80 class scores
+        preds = raw[0][0].T          # (8400, 84): cx cy w h + 80 class scores
         class_scores = preds[:, 4:]
         class_ids = np.argmax(class_scores, axis=1)
         confidences = class_scores[np.arange(len(class_scores)), class_ids]
@@ -145,8 +175,7 @@ class DetectionService:
             y1 = int((cy - bh / 2) * scale_y)
             boxes_xywh.append([x1, y1, int(bw * scale_x), int(bh * scale_y)])
 
-        indices = cv2.dnn.NMSBoxes(boxes_xywh, confidences.tolist(), self.confidence_threshold, 0.45)
-        flat = indices.flatten() if len(indices) else []
+        flat = self._nms(boxes_xywh, confidences, iou_threshold=0.45)
 
         detections: list[dict[str, Any]] = []
         for i in flat:
@@ -233,6 +262,8 @@ class DetectionService:
         while not self._stop_event.is_set():
             try:
                 frame = self.frame_queue.get(timeout=2)
+                while not self.frame_queue.empty():
+                    frame = self.frame_queue.get_nowait()
             except queue.Empty:
                 continue
 
