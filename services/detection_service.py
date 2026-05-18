@@ -10,6 +10,7 @@ Two output queues:
 The preview_queue is optional. If None, no preview frames are sent.
 """
 
+
 import queue
 import threading
 import time
@@ -28,15 +29,31 @@ logger = get_logger(__name__)
 
 # Colours for bounding boxes per label (BGR)
 LABEL_COLORS: dict[str, tuple[int, int, int]] = {
-    "cat":        (0,   200,  80),   # green
-    "dog":        (0,   140, 255),   # orange
-    "excrement":  (0,    60, 200),   # red
-    "person":     (200,  60,  60),   # blue-ish
+    "Cats":             (0,   200,  80),   # green
+    "Person":           (200,  60,  60),   # blue-ish
+    "dog-poop":         (0,    40, 160),   # dark red
+    "poop":             (0,    40, 160),   # dark red
+    "dog":              (0,   140, 255),   # orange
+    "dogs":             (0,   140, 255),
+    "Corgi":            (0,   140, 255),
+    "Dachshund":        (0,   140, 255),
+    "Dalmatian":        (0,   140, 255),
+    "Golden retriever": (0,   140, 255),
+    "Pomeranian":       (0,   140, 255),
+    "Shiba":            (0,   140, 255),
+    "husky":            (0,   140, 255),
+    "happy dog":        (0,   140, 255),
+    "mix":              (0,   140, 255),
+    "sad":              (0,   140, 255),
 }
 DEFAULT_COLOR: tuple[int, int, int] = (160, 160, 160)
 
-# Fine-tuned YOLOv11n classes (Roboflow alphabetical order — verify against data.yaml)
-_MODEL_CLASSES: list[str] = ["cat", "dog", "excrement", "person"]
+# Fine-tuned YOLOv11n — 16 classes extracted from best.onnx metadata
+_MODEL_CLASSES: list[str] = [
+    "Cats", "Corgi", "Dachshund", "Dalmatian", "Golden retriever",
+    "Person", "Pomeranian", "Shiba", "dog", "dog-poop",
+    "dogs", "happy dog", "husky", "mix", "poop", "sad",
+]
 _INPUT_SIZE = 640
 
 
