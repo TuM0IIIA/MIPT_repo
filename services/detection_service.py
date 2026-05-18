@@ -141,9 +141,9 @@ class DetectionService:
         resized = cv2.resize(frame, (_INPUT_SIZE, _INPUT_SIZE))
         rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
         blob = (rgb.astype(np.float32) / 255.0).transpose(2, 0, 1)[np.newaxis]
-        raw = self.model.run(None, {self._input_name: blob})   # shape: (1, 4+len(classes), 8400)
+        raw = self.model.run(None, {self._input_name: blob})   # shape: (1, 4+num_classes, 8400)
 
-        preds = raw[0][0].T          # (8400, 84): cx cy w h + 80 class scores
+        preds = raw[0][0].T          # (8400, 4+num_classes): cx cy w h + class scores
         class_scores = preds[:, 4:]
         class_ids = np.argmax(class_scores, axis=1)
         confidences = class_scores[np.arange(len(class_scores)), class_ids]
