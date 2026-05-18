@@ -28,28 +28,16 @@ logger = get_logger(__name__)
 
 # Colours for bounding boxes per label (BGR)
 LABEL_COLORS: dict[str, tuple[int, int, int]] = {
-    "cat":    (0,   200,  80),   # green
-    "dog":    (0,   140, 255),   # orange
-    "person": (200,  60,  60),   # blue-ish
-    "bird":   (220, 180,   0),   # cyan
+    "cat":        (0,   200,  80),   # green
+    "dog":        (0,   140, 255),   # orange
+    "excrement":  (0,    60, 200),   # red
+    "person":     (200,  60,  60),   # blue-ish
 }
 DEFAULT_COLOR: tuple[int, int, int] = (160, 160, 160)
 
-# YOLOv8n ONNX was trained on COCO 80 classes
-_COCO_CLASSES: list[str] = [
-    "person", "bicycle", "car", "motorcycle", "airplane", "bus", "train", "truck", "boat",
-    "traffic light", "fire hydrant", "stop sign", "parking meter", "bench", "bird", "cat",
-    "dog", "horse", "sheep", "cow", "elephant", "bear", "zebra", "giraffe", "backpack",
-    "umbrella", "handbag", "tie", "suitcase", "frisbee", "skis", "snowboard", "sports ball",
-    "kite", "baseball bat", "baseball glove", "skateboard", "surfboard", "tennis racket",
-    "bottle", "wine glass", "cup", "fork", "knife", "spoon", "bowl", "banana", "apple",
-    "sandwich", "orange", "broccoli", "carrot", "hot dog", "pizza", "donut", "cake",
-    "chair", "couch", "potted plant", "bed", "dining table", "toilet", "tv", "laptop",
-    "mouse", "remote", "keyboard", "cell phone", "microwave", "oven", "toaster", "sink",
-    "refrigerator", "book", "clock", "vase", "scissors", "teddy bear", "hair drier",
-    "toothbrush",
-]
-_INPUT_SIZE = 640   # YOLOv8n ONNX expects 640×640
+# Fine-tuned YOLOv11n classes (Roboflow alphabetical order — verify against data.yaml)
+_MODEL_CLASSES: list[str] = ["cat", "dog", "excrement", "person"]
+_INPUT_SIZE = 640
 
 
 @dataclass
@@ -153,7 +141,7 @@ class DetectionService:
         resized = cv2.resize(frame, (_INPUT_SIZE, _INPUT_SIZE))
         rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
         blob = (rgb.astype(np.float32) / 255.0).transpose(2, 0, 1)[np.newaxis]
-        raw = self.model.run(None, {self._input_name: blob})   # shape: (1, 84, 8400)
+        raw = self.model.run(None, {self._input_name: blob})   # shape: (1, 4+len(classes), 8400)
 
         preds = raw[0][0].T          # (8400, 84): cx cy w h + 80 class scores
         class_scores = preds[:, 4:]
@@ -181,7 +169,7 @@ class DetectionService:
         for i in flat:
             x, y, bw, bh = boxes_xywh[i]
             cls = int(class_ids[i])
-            label = _COCO_CLASSES[cls] if cls < len(_COCO_CLASSES) else str(cls)
+            label = _MODEL_CLASSES[cls] if cls < len(_MODEL_CLASSES) else str(cls)
             detections.append({
                 "label": label,
                 "confidence": round(float(confidences[i]), 3),
