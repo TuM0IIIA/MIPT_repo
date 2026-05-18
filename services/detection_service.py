@@ -10,6 +10,7 @@ Two output queues:
 The preview_queue is optional. If None, no preview frames are sent.
 """
 
+
 import queue
 import threading
 import time
